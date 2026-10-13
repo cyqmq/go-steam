@@ -61,6 +61,36 @@ type PICSTokensResult struct {
 	PackageDeniedTokens  []uint32
 }
 
+// DepotKeyResult 是一次 depot 解密密钥请求的结果（对应 SteamKit2 的 DepotKeyCallback）。
+type DepotKeyResult struct {
+	Result        steamlang.EResult
+	DepotID       uint32
+	EncryptionKey []byte
+}
+
+// PICSAppChange 是一个 app 的 PICS 变更项。
+type PICSAppChange struct {
+	AppID        uint32
+	ChangeNumber uint32
+	NeedsToken   bool
+}
+
+// PICSPackageChange 是一个 package 的 PICS 变更项。
+type PICSPackageChange struct {
+	PackageID    uint32
+	ChangeNumber uint32
+	NeedsToken   bool
+}
+
+// PICSChangesResult 是 PICS 变更查询的结果（对应 SteamKit2 的 PICSChangesCallback）。
+type PICSChangesResult struct {
+	CurrentChangeNumber uint32
+	SinceChangeNumber  uint32
+	ForceFullUpdate    bool
+	AppChanges          []PICSAppChange
+	PackageChanges      []PICSPackageChange
+}
+
 // Apps 对应 SteamKit2 的 SteamApps handler，处理应用/许可相关的 CM 请求。
 type Apps struct {
 	client *Client
@@ -131,6 +161,40 @@ func (a *Apps) HandlePacket(packet *protocol.Packet) {
 			AppDeniedTokens:      body.GetAppDeniedTokens(),
 			PackageAccessTokens: packageTokens,
 			PackageDeniedTokens: body.GetPackageDeniedTokens(),
+		}
+	case steamlang.EMsg_ClientGetDepotDecryptionKeyResponse:
+		body := new(protobuf.CMsgClientGetDepotDecryptionKeyResponse)
+		packet.ReadProtoMsg(body)
+		result = &DepotKeyResult{
+			Result:        steamlang.EResult(body.GetEresult()),
+			DepotID:       body.GetDepotId(),
+			EncryptionKey: body.GetDepotEncryptionKey(),
+		}
+	case steamlang.EMsg_ClientPICSChangesSinceResponse:
+		body := new(protobuf.CMsgClientPICSChangesSinceResponse)
+		packet.ReadProtoMsg(body)
+		appChanges := make([]PICSAppChange, 0, len(body.GetAppChanges()))
+		for _, ch := range body.GetAppChanges() {
+			appChanges = append(appChanges, PICSAppChange{
+				AppID:        ch.GetAppid(),
+				ChangeNumber: ch.GetChangeNumber(),
+				NeedsToken:   ch.GetNeedsToken(),
+			})
+		}
+		packageChanges := make([]PICSPackageChange, 0, len(body.GetPackageChanges()))
+		for _, ch := range body.GetPackageChanges() {
+			packageChanges = append(packageChanges, PICSPackageChange{
+				PackageID:    ch.GetPackageid(),
+				ChangeNumber: ch.GetChangeNumber(),
+				NeedsToken:   ch.GetNeedsToken(),
+			})
+		}
+		result = &PICSChangesResult{
+			CurrentChangeNumber: body.GetCurrentChangeNumber(),
+			SinceChangeNumber:  body.GetSinceChangeNumber(),
+			ForceFullUpdate:    body.GetForceFullUpdate(),
+			AppChanges:          appChanges,
+			PackageChanges:      packageChanges,
 		}
 	default:
 		return
@@ -219,6 +283,41 @@ func (a *Apps) PICSGetAccessTokens(appIDs, packageIDs []uint32) (*PICSTokensResu
 		return nil, err
 	}
 	return raw.(*PICSTokensResult), nil
+}
+
+// GetDepotDecryptionKey 请求指定 depot 的解密密钥。
+// 对应 SteamKit2 的 SteamApps.GetDepotDecryptionKey(depotid, appid)。
+func (a *Apps) GetDepotDecryptionKey(depotID, appID uint32) (*DepotKeyResult, error) {
+	msg := protocol.NewClientMsgProtobuf(steamlang.EMsg_ClientGetDepotDecryptionKey, &protobuf.CMsgClientGetDepotDecryptionKey{
+		DepotId: proto.Uint32(depotID),
+		AppId:   proto.Uint32(appID),
+	})
+	jobID := a.client.GetNextJobId()
+	msg.SetSourceJobId(jobID)
+
+	raw, err := a.sendJob(msg, jobID)
+	if err != nil {
+		return nil, err
+	}
+	return raw.(*DepotKeyResult), nil
+}
+
+// PICSGetChangesSince 请求自指定变更号以来的 PICS 变更列表。
+// 对应 SteamKit2 的 SteamApps.PICSGetChangesSince(lastChangeNumber, sendAppChangelist, sendPackageChangelist)。
+func (a *Apps) PICSGetChangesSince(lastChangeNumber uint32, sendAppChangelist, sendPackageChangelist bool) (*PICSChangesResult, error) {
+	msg := protocol.NewClientMsgProtobuf(steamlang.EMsg_ClientPICSChangesSinceRequest, &protobuf.CMsgClientPICSChangesSinceRequest{
+		SinceChangeNumber:      proto.Uint32(lastChangeNumber),
+		SendAppInfoChanges:     proto.Bool(sendAppChangelist),
+		SendPackageInfoChanges: proto.Bool(sendPackageChangelist),
+	})
+	jobID := a.client.GetNextJobId()
+	msg.SetSourceJobId(jobID)
+
+	raw, err := a.sendJob(msg, jobID)
+	if err != nil {
+		return nil, err
+	}
+	return raw.(*PICSChangesResult), nil
 }
 
 // sendJob 发送消息并等待对应 JobID 的响应（带超时）。

@@ -255,3 +255,121 @@ func TestAppsHandlePICSGetAccessTokensPacket(t *testing.T) {
 		t.Error("未收到结果")
 	}
 }
+
+func TestAppsHandleGetDepotDecryptionKeyPacket(t *testing.T) {
+	client := NewClient()
+	defer client.Disconnect()
+
+	jobID := client.GetNextJobId()
+	ch := make(chan interface{}, 1)
+	client.Apps.mutex.Lock()
+	client.Apps.jobs[jobID] = ch
+	client.Apps.mutex.Unlock()
+
+	body := &protobuf.CMsgClientGetDepotDecryptionKeyResponse{
+		Eresult:            proto.Int32(int32(steamlang.EResult_OK)),
+		DepotId:            proto.Uint32(2347770),
+		DepotEncryptionKey: []byte("depot-key"),
+	}
+	header := steamlang.NewMsgHdrProtoBuf()
+	header.Msg = steamlang.EMsg_ClientGetDepotDecryptionKeyResponse
+	header.Proto.JobidTarget = proto.Uint64(uint64(jobID))
+	var headerBuf bytes.Buffer
+	if err := header.Serialize(&headerBuf); err != nil {
+		t.Fatalf("序列化 header 失败: %v", err)
+	}
+	bodyData, err := proto.Marshal(body)
+	if err != nil {
+		t.Fatalf("序列化 body 失败: %v", err)
+	}
+
+	packet := &protocol.Packet{
+		EMsg:        steamlang.EMsg_ClientGetDepotDecryptionKeyResponse,
+		IsProto:     true,
+		TargetJobId: jobID,
+		Data:        append(headerBuf.Bytes(), bodyData...),
+	}
+
+	client.Apps.HandlePacket(packet)
+
+	select {
+	case raw := <-ch:
+		result, ok := raw.(*DepotKeyResult)
+		if !ok {
+			t.Fatalf("类型断言失败: %T", raw)
+		}
+		if result.Result != steamlang.EResult_OK {
+			t.Errorf("Result = %v, 期望 OK", result.Result)
+		}
+		if result.DepotID != 2347770 {
+			t.Errorf("DepotID = %d, 期望 2347770", result.DepotID)
+		}
+		if string(result.EncryptionKey) != "depot-key" {
+			t.Errorf("EncryptionKey = %q, 期望 %q", result.EncryptionKey, "depot-key")
+		}
+	default:
+		t.Error("未收到结果")
+	}
+}
+
+func TestAppsHandlePICSChangesSincePacket(t *testing.T) {
+	client := NewClient()
+	defer client.Disconnect()
+
+	jobID := client.GetNextJobId()
+	ch := make(chan interface{}, 1)
+	client.Apps.mutex.Lock()
+	client.Apps.jobs[jobID] = ch
+	client.Apps.mutex.Unlock()
+
+	body := &protobuf.CMsgClientPICSChangesSinceResponse{
+		CurrentChangeNumber: proto.Uint32(100),
+		SinceChangeNumber:  proto.Uint32(90),
+		ForceFullUpdate:    proto.Bool(false),
+		AppChanges: []*protobuf.CMsgClientPICSChangesSinceResponse_AppChange{
+			{Appid: proto.Uint32(730), ChangeNumber: proto.Uint32(95), NeedsToken: proto.Bool(true)},
+		},
+		PackageChanges: []*protobuf.CMsgClientPICSChangesSinceResponse_PackageChange{
+			{Packageid: proto.Uint32(456), ChangeNumber: proto.Uint32(92)},
+		},
+	}
+	header := steamlang.NewMsgHdrProtoBuf()
+	header.Msg = steamlang.EMsg_ClientPICSChangesSinceResponse
+	header.Proto.JobidTarget = proto.Uint64(uint64(jobID))
+	var headerBuf bytes.Buffer
+	if err := header.Serialize(&headerBuf); err != nil {
+		t.Fatalf("序列化 header 失败: %v", err)
+	}
+	bodyData, err := proto.Marshal(body)
+	if err != nil {
+		t.Fatalf("序列化 body 失败: %v", err)
+	}
+
+	packet := &protocol.Packet{
+		EMsg:        steamlang.EMsg_ClientPICSChangesSinceResponse,
+		IsProto:     true,
+		TargetJobId: jobID,
+		Data:        append(headerBuf.Bytes(), bodyData...),
+	}
+
+	client.Apps.HandlePacket(packet)
+
+	select {
+	case raw := <-ch:
+		result, ok := raw.(*PICSChangesResult)
+		if !ok {
+			t.Fatalf("类型断言失败: %T", raw)
+		}
+		if result.CurrentChangeNumber != 100 || result.SinceChangeNumber != 90 {
+			t.Errorf("变更号 = %d/%d", result.CurrentChangeNumber, result.SinceChangeNumber)
+		}
+		if len(result.AppChanges) != 1 || result.AppChanges[0].AppID != 730 || result.AppChanges[0].ChangeNumber != 95 || !result.AppChanges[0].NeedsToken {
+			t.Errorf("AppChanges = %v", result.AppChanges)
+		}
+		if len(result.PackageChanges) != 1 || result.PackageChanges[0].PackageID != 456 || result.PackageChanges[0].ChangeNumber != 92 {
+			t.Errorf("PackageChanges = %v", result.PackageChanges)
+		}
+	default:
+		t.Error("未收到结果")
+	}
+}

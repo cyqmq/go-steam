@@ -33,6 +33,16 @@
   - 对应 SteamKit2：`SteamApps.PICSGetAccessTokens(appIds, packageIds)` → `PICSTokensCallback`
   - 返回 `PICSTokensResult{AppAccessTokens, AppDeniedTokens, PackageAccessTokens, PackageDeniedTokens}`
 
+- `Client.Apps.GetDepotDecryptionKey(depotID, appID)`
+  - 请求指定 depot 的解密密钥
+  - 对应 SteamKit2：`SteamApps.GetDepotDecryptionKey(depotid, appid)` → `DepotKeyCallback`
+  - 返回 `DepotKeyResult{Result, DepotID, EncryptionKey}`
+
+- `Client.Apps.PICSGetChangesSince(lastChangeNumber, sendAppChangelist, sendPackageChangelist)`
+  - 请求自指定变更号以来的 PICS 变更列表
+  - 对应 SteamKit2：`SteamApps.PICSGetChangesSince(lastChangeNumber, sendAppChangelist, sendPackageChangelist)` → `PICSChangesCallback`
+  - 返回 `PICSChangesResult{CurrentChangeNumber, SinceChangeNumber, ForceFullUpdate, AppChanges, PackageChanges}`
+
 ## 维护方式
 
 - ASF-Go 通过 `replace github.com/Philipp15b/go-steam/v3 => ../go-steam` 使用本仓库
