@@ -1,55 +1,36 @@
-# Steam for Go
+# go-steam（ASF-Go 自维护分支）
 
-This library implements Steam's protocol to allow automation of different actions on Steam without running an actual Steam client. It is based on [SteamKit2](https://github.com/SteamRE/SteamKit), a .NET library.
+本仓库是 [Philipp15b/go-steam/v3](https://github.com/Philipp15b/go-steam) 的自维护分支，
+由 ASF-Go 项目维护，用于补充原版停更后缺失的 Steam 协议功能。
 
-In addition, it contains APIs to Steam Community features, like trade offers and inventories.
+## 与原版的差异
 
-Some of the currently implemented features:
+### 新增：SteamApps handler（`apps.go`）
 
-  * Trading and trade offers, including inventories and notifications
-  * Friend and group management
-  * Chatting with friends
-  * Persona states (online, offline, looking to trade, etc.)
-  * SteamGuard with two-factor authentication
-  * Team Fortress 2: Crafting, moving, naming and deleting items
+对应 SteamKit2 的 `Steam/Handlers/SteamApps`，当前实现：
 
-If this is useful to you, there's also the [go-steamapi](https://github.com/Philipp15b/go-steamapi) package that wraps some of the official Steam Web API's types.
+- `Client.Apps.RequestFreeLicense(appID)` / `RequestFreeLicenseMulti(appIDs)`
+  - 请求 appID 的免费许可（免费随选游戏激活）
+  - 实现原理（扒自 SteamKit2）：
+    1. 构造 `CMsgClientRequestFreeLicense` protobuf 消息（`EMsg_ClientRequestFreeLicense`）
+    2. `SetSourceJobId(jobID)`（SteamKit2：`request.SourceJobID = Client.GetNextJobID()`）
+    3. `Client.Write(msg)` 发送
+    4. 通过 JobID 匹配 `EMsgClientRequestFreeLicenseResponse` 响应（SteamKit2：`AsyncJob<FreeLicenseCallback>`）
+  - 返回 `FreeLicenseResult{Result, GrantedApps, GrantedPackages}`
 
-## Installation
+## 维护方式
 
-    go get github.com/Philipp15b/go-steam
+- ASF-Go 通过 `replace github.com/Philipp15b/go-steam/v3 => ../go-steam` 使用本仓库
+- 模块路径保持 `github.com/Philipp15b/go-steam/v3` 不变，避免改动上层 import
 
-## Usage
+## 测试
 
-You can view the documentation with the [`godoc`](http://golang.org/cmd/godoc) tool or
-[online on godoc.org](http://godoc.org/github.com/Philipp15b/go-steam).
+```bash
+go test ./...
+```
 
-You should also take a look at the following sub-packages:
+## 参考
 
-  * [`gsbot`](http://godoc.org/github.com/Philipp15b/go-steam/gsbot) utilites that make writing bots easier
-  * [example bot](http://godoc.org/github.com/Philipp15b/go-steam/gsbot/gsbot) and [its source code](https://github.com/Philipp15b/go-steam/blob/master/gsbot/gsbot/gsbot.go)
-  * [`trade`](http://godoc.org/github.com/Philipp15b/go-steam/trade) for trading
-  * [`tradeoffer`](http://godoc.org/github.com/Philipp15b/go-steam/tradeoffer) for trade offers
-  * [`economy/inventory`](http://godoc.org/github.com/Philipp15b/go-steam/economy/inventory) for inventories
-  * [`tf2`](http://godoc.org/github.com/Philipp15b/go-steam/tf2) for Team Fortress 2 related things
-
-## Working with go-steam
-
-Whether you want to develop your own Steam bot or directly work on go-steam itself, there are are few things to know.
-
- * If something is not working, check first if the same operation works (under the same conditions!) in the Steam client on that account. Maybe there's something go-steam doesn't handle correctly or you're missing a warning that's not obviously shown in go-steam. This is particularly important when working with trading since there are [restrictions](https://support.steampowered.com/kb_article.php?ref=1047-edfm-2932), for example newly authorized devices will not be able to trade for seven days.
- * Since Steam does not maintain a public API for most of the things go-steam implements, you can expect that sometimes things break randomly. Especially the `trade` and `tradeoffer` packages have been affected in the past.
- * Always gather as much information as possible. When you file an issue, be as precise and complete as you can. This makes debugging way easier.
- * If you haven't noticed yet, expect to find lots of things out yourself. Debugging can be complicated and Steam's internals are too.
- * Sometimes things break and other [SteamKit ports](https://github.com/SteamRE/SteamKit/wiki/Ports) are fixed already. Maybe take a look what people are saying over there? There's also the [SteamKit IRC channel](https://github.com/SteamRE/SteamKit/wiki#contact).
-
-## Updating go-steam to a new SteamKit version
-
-Go source code is generated with code in the `generator` directory.
-Look at `generator/README.md` for more information on how to use the generator.
-
-Then, after generating new Go source files, update `go-steam` as necessary.
-
-## License
-
-Steam for Go is licensed under the New BSD License. More information can be found in LICENSE.txt.
+- 原版：https://github.com/Philipp15b/go-steam
+- SteamKit2（C# 协议参考）：https://github.com/SteamRE/SteamKit
+- SteamKit2 SteamApps 源码：`SteamKit2/Steam/Handlers/SteamApps/SteamApps.cs`
