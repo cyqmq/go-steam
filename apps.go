@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Philipp15b/go-steam/v3/protocol"
-	"github.com/Philipp15b/go-steam/v3/protocol/protobuf"
-	"github.com/Philipp15b/go-steam/v3/protocol/steamlang"
+	"github.com/cyqmq/go-steam/v3/protocol"
+	"github.com/cyqmq/go-steam/v3/protocol/protobuf"
+	"github.com/cyqmq/go-steam/v3/protocol/steamlang"
 	"google.golang.org/protobuf/proto"
 )
 
