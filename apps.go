@@ -4,6 +4,7 @@
 package steam
 
 import (
+	"encoding/hex"
 	"errors"
 	"sync"
 	"time"
@@ -92,9 +93,14 @@ func (a *Apps) HandlePacket(packet *protocol.Packet) {
 		packet.ReadProtoMsg(body)
 		betaPasswords := make([]BetaPassword, 0, len(body.GetBetapasswords()))
 		for _, bp := range body.GetBetapasswords() {
+			// SteamKit2: BetaPasswords[betaname] = Utils.DecodeHexString(betapassword)，betapassword 是十六进制字符串
+			password, err := hex.DecodeString(bp.GetBetapassword())
+			if err != nil {
+				password = []byte(bp.GetBetapassword())
+			}
 			betaPasswords = append(betaPasswords, BetaPassword{
 				Name:     bp.GetBetaname(),
-				Password: []byte(bp.GetBetapassword()),
+				Password: password,
 			})
 		}
 		result = &CheckAppBetaPasswordResult{

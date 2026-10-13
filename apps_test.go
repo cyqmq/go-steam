@@ -132,8 +132,8 @@ func TestAppsHandleCheckAppBetaPasswordPacket(t *testing.T) {
 		if result.BetaPasswords[0].Name != "beta" {
 			t.Errorf("BetaPasswords[0].Name = %q, 期望 %q", result.BetaPasswords[0].Name, "beta")
 		}
-		if string(result.BetaPasswords[0].Password) != "deadbeef" {
-			t.Errorf("BetaPasswords[0].Password = %q, 期望 %q", result.BetaPasswords[0].Password, "deadbeef")
+		if string(result.BetaPasswords[0].Password) != "\xde\xad\xbe\xef" {
+			t.Errorf("BetaPasswords[0].Password = %x, 期望 deadbeef", result.BetaPasswords[0].Password)
 		}
 	default:
 		t.Error("未收到结果")
