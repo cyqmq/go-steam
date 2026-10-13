@@ -3,6 +3,8 @@
 本仓库是 [Philipp15b/go-steam/v3](https://github.com/Philipp15b/go-steam) 的自维护分支，
 由 ASF-Go 项目维护，用于补充原版停更后缺失的 Steam 协议功能。
 
+- GitHub：https://github.com/cyqmq/go-steam
+
 ## 与原版的差异
 
 ### 新增：SteamApps handler（`apps.go`）
