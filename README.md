@@ -18,6 +18,11 @@
     4. 通过 JobID 匹配 `EMsgClientRequestFreeLicenseResponse` 响应（SteamKit2：`AsyncJob<FreeLicenseCallback>`）
   - 返回 `FreeLicenseResult{Result, GrantedApps, GrantedPackages}`
 
+- `Client.Apps.CheckAppBetaPassword(appID, password)`
+  - 提交 beta 密码，返回可用 beta 分支及其加密密钥
+  - 对应 SteamKit2：`SteamApps.CheckAppBetaPassword(app, password)` → `CheckAppBetaPasswordCallback`
+  - 返回 `CheckAppBetaPasswordResult{Result, BetaPasswords[]}`
+
 ## 维护方式
 
 - ASF-Go 通过 `replace github.com/Philipp15b/go-steam/v3 => ../go-steam` 使用本仓库
