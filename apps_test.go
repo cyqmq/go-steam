@@ -139,3 +139,119 @@ func TestAppsHandleCheckAppBetaPasswordPacket(t *testing.T) {
 		t.Error("未收到结果")
 	}
 }
+
+func TestAppsHandleGetAppOwnershipTicketPacket(t *testing.T) {
+	client := NewClient()
+	defer client.Disconnect()
+
+	jobID := client.GetNextJobId()
+	ch := make(chan interface{}, 1)
+	client.Apps.mutex.Lock()
+	client.Apps.jobs[jobID] = ch
+	client.Apps.mutex.Unlock()
+
+	body := &protobuf.CMsgClientGetAppOwnershipTicketResponse{
+		Eresult: proto.Uint32(uint32(steamlang.EResult_OK)),
+		AppId:   proto.Uint32(730),
+		Ticket:  []byte("ticket-data"),
+	}
+	header := steamlang.NewMsgHdrProtoBuf()
+	header.Msg = steamlang.EMsg_ClientGetAppOwnershipTicketResponse
+	header.Proto.JobidTarget = proto.Uint64(uint64(jobID))
+	var headerBuf bytes.Buffer
+	if err := header.Serialize(&headerBuf); err != nil {
+		t.Fatalf("序列化 header 失败: %v", err)
+	}
+	bodyData, err := proto.Marshal(body)
+	if err != nil {
+		t.Fatalf("序列化 body 失败: %v", err)
+	}
+
+	packet := &protocol.Packet{
+		EMsg:        steamlang.EMsg_ClientGetAppOwnershipTicketResponse,
+		IsProto:     true,
+		TargetJobId: jobID,
+		Data:        append(headerBuf.Bytes(), bodyData...),
+	}
+
+	client.Apps.HandlePacket(packet)
+
+	select {
+	case raw := <-ch:
+		result, ok := raw.(*AppOwnershipTicketResult)
+		if !ok {
+			t.Fatalf("类型断言失败: %T", raw)
+		}
+		if result.Result != steamlang.EResult_OK {
+			t.Errorf("Result = %v, 期望 OK", result.Result)
+		}
+		if result.AppID != 730 {
+			t.Errorf("AppID = %d, 期望 730", result.AppID)
+		}
+		if string(result.Ticket) != "ticket-data" {
+			t.Errorf("Ticket = %q, 期望 %q", result.Ticket, "ticket-data")
+		}
+	default:
+		t.Error("未收到结果")
+	}
+}
+
+func TestAppsHandlePICSGetAccessTokensPacket(t *testing.T) {
+	client := NewClient()
+	defer client.Disconnect()
+
+	jobID := client.GetNextJobId()
+	ch := make(chan interface{}, 1)
+	client.Apps.mutex.Lock()
+	client.Apps.jobs[jobID] = ch
+	client.Apps.mutex.Unlock()
+
+	body := &protobuf.CMsgClientPICSAccessTokenResponse{
+		AppAccessTokens: []*protobuf.CMsgClientPICSAccessTokenResponse_AppToken{
+			{Appid: proto.Uint32(730), AccessToken: proto.Uint64(111)},
+		},
+		AppDeniedTokens: []uint32{999},
+		PackageAccessTokens: []*protobuf.CMsgClientPICSAccessTokenResponse_PackageToken{
+			{Packageid: proto.Uint32(456), AccessToken: proto.Uint64(222)},
+		},
+	}
+	header := steamlang.NewMsgHdrProtoBuf()
+	header.Msg = steamlang.EMsg_ClientPICSAccessTokenResponse
+	header.Proto.JobidTarget = proto.Uint64(uint64(jobID))
+	var headerBuf bytes.Buffer
+	if err := header.Serialize(&headerBuf); err != nil {
+		t.Fatalf("序列化 header 失败: %v", err)
+	}
+	bodyData, err := proto.Marshal(body)
+	if err != nil {
+		t.Fatalf("序列化 body 失败: %v", err)
+	}
+
+	packet := &protocol.Packet{
+		EMsg:        steamlang.EMsg_ClientPICSAccessTokenResponse,
+		IsProto:     true,
+		TargetJobId: jobID,
+		Data:        append(headerBuf.Bytes(), bodyData...),
+	}
+
+	client.Apps.HandlePacket(packet)
+
+	select {
+	case raw := <-ch:
+		result, ok := raw.(*PICSTokensResult)
+		if !ok {
+			t.Fatalf("类型断言失败: %T", raw)
+		}
+		if len(result.AppAccessTokens) != 1 || result.AppAccessTokens[0].AppID != 730 || result.AppAccessTokens[0].AccessToken != 111 {
+			t.Errorf("AppAccessTokens = %v", result.AppAccessTokens)
+		}
+		if len(result.AppDeniedTokens) != 1 || result.AppDeniedTokens[0] != 999 {
+			t.Errorf("AppDeniedTokens = %v", result.AppDeniedTokens)
+		}
+		if len(result.PackageAccessTokens) != 1 || result.PackageAccessTokens[0].PackageID != 456 || result.PackageAccessTokens[0].AccessToken != 222 {
+			t.Errorf("PackageAccessTokens = %v", result.PackageAccessTokens)
+		}
+	default:
+		t.Error("未收到结果")
+	}
+}

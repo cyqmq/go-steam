@@ -23,6 +23,16 @@
   - 对应 SteamKit2：`SteamApps.CheckAppBetaPassword(app, password)` → `CheckAppBetaPasswordCallback`
   - 返回 `CheckAppBetaPasswordResult{Result, BetaPasswords[]}`
 
+- `Client.Apps.GetAppOwnershipTicket(appID)`
+  - 请求应用所有权票据
+  - 对应 SteamKit2：`SteamApps.GetAppOwnershipTicket(appid)` → `AppOwnershipTicketCallback`
+  - 返回 `AppOwnershipTicketResult{Result, AppID, Ticket}`
+
+- `Client.Apps.PICSGetAccessTokens(appIDs, packageIDs)`
+  - 请求一批 app/package 的 PICS 访问令牌
+  - 对应 SteamKit2：`SteamApps.PICSGetAccessTokens(appIds, packageIds)` → `PICSTokensCallback`
+  - 返回 `PICSTokensResult{AppAccessTokens, AppDeniedTokens, PackageAccessTokens, PackageDeniedTokens}`
+
 ## 维护方式
 
 - ASF-Go 通过 `replace github.com/Philipp15b/go-steam/v3 => ../go-steam` 使用本仓库
